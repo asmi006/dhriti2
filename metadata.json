@@ -1,0 +1,8 @@
+{
+  "name": "Dhriti",
+  "description": "Women\u0027s Safety Platform - Emergency SOS alerts, encrypted complaint registration \u0026 tracking, safe route navigation, and real-time police station finder.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
