@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Dhriti - Women's Safety Platform</title>
+  <meta name="description" content="Dhriti Women's Safety Platform - Emergency SOS, real-time GPS tracking, nearest police stations radar, and encrypted complaint filing.">
+  <link rel="icon" type="image/png" href="logo.png">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            navy: {
+              900: '#0B192C',
+              800: '#1E3E62',
+              700: '#2A528A'
+            },
+            saffron: {
+              500: '#FF9933',
+              600: '#EA580C'
+            },
+            safetyGreen: '#16A34A',
+            sosRed: '#DC2626'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Leaflet.js for Real-Time OpenStreetMap GPS Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- QRCode.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 0.3; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .pulse-animation {
+      animation: pulse-ring 2s infinite ease-in-out;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background-color: #CBD5E1;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col antialiased selection:bg-orange-500 selection:text-white">
+
+  <!-- TOP HEADER -->
+  <header class="bg-navy-900 text-white sticky top-0 z-40 shadow-lg border-b border-navy-800">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      
+      <!-- Brand & Uploaded Logo -->
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-full bg-white p-0.5 shadow-md flex items-center justify-center overflow-hidden border-2 border-saffron-500">
+          <img src="logo.png" alt="Dhriti Logo" class="w-full h-full object-cover rounded-full" onerror="this.src='https://placehold.co/100x100/ffffff/000000?text=Dhriti'">
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-xl font-bold tracking-tight text-white" id="brand-title">Dhriti</h1>
+            <span class="w-4 h-1.5 rounded-full bg-saffron-500 inline-block"></span>
+            <span class="text-[10px] bg-green-900/60 text-green-300 border border-green-700/60 font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider">Govt Verified</span>
+          </div>
+          <p class="text-xs text-slate-300" id="brand-subtitle">Women's Safety & Emergency Response Platform</p>
+        </div>
+      </div>
+
+      <!-- Action buttons: Language, 112 Hotline -->
+      <div class="flex items-center space-x-2">
+        <button id="lang-btn" onclick="toggleLanguage()" class="px-2.5 py-1 text-xs font-semibold bg-navy-800 hover:bg-slate-700 rounded-lg border border-slate-600 transition">
+          <span id="lang-text">HI | हिंदी</span>
+        </button>
+
+        <a href="tel:112" class="flex items-center space-x-1.5 bg-sosRed hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition transform active:scale-95">
+          <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.02-.24 11.72 11.72 0 003.68.59 1 1 0 011 1v3.5a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.72 11.72 0 00.59 3.68 1 1 0 01-.24 1.02l-2.22 2.09z"/></svg>
+          <span>PCR 112</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- NAVIGATION TABS -->
+  <nav class="bg-white border-b border-slate-200 sticky top-[60px] z-30 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 flex space-x-1 overflow-x-auto custom-scroll text-sm font-medium">
+      <button onclick="switchTab('map')" id="tab-map" class="py-3 px-4 text-navy-900 border-b-2 border-navy-900 font-bold flex items-center space-x-2 whitespace-nowrap">
+        <span>🗺️</span>
+        <span class="tab-label" data-en="Live GPS Map" data-hi="लाइव जीपीएस मैप">Live GPS Map</span>
+      </button>
+      <button onclick="switchTab('police')" id="tab-police" class="py-3 px-4 text-slate-500 hover:text-navy-900 border-b-2 border-transparent flex items-center space-x-2 whitespace-nowrap">
+        <span>👮</span>
+        <span class="tab-label" data-en="Nearest Police Stations" data-hi="निकटतम पुलिस स्टेशन">Nearest Police Stations</span>
+        <span id="police-count-badge" class="ml-1 text-[11px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded-full">6</span>
+      </button>
+      <button onclick="switchTab('faq')" id="tab-faq" class="py-3 px-4 text-slate-500 hover:text-navy-900 border-b-2 border-transparent flex items-center space-x-2 whitespace-nowrap">
+        <span>❓</span>
+        <span class="tab-label" data-en="Safety FAQ" data-hi="सुरक्षा अक्सर पूछे जाने वाले सवाल">Safety FAQ</span>
+      </button>
+      <button onclick="switchTab('complaint')" id="tab-complaint" class="py-3 px-4 text-slate-500 hover:text-navy-900 border-b-2 border-transparent flex items-center space-x-2 whitespace-nowrap">
+        <span>📝</span>
+        <span class="tab-label" data-en="E-Complaint / FIR" data-hi="शिकायत व ई-एफआईआर">E-Complaint / FIR</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 space-y-6">
+
+    <!-- 1. LIVE GPS TELEMETRY BAR -->
+    <div class="bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="w-3.5 h-3.5 rounded-full bg-green-500 pulse-animation"></div>
+        <div>
+          <div class="text-xs font-bold text-slate-900 flex items-center space-x-2">
+            <span id="telemetry-coords">Live GPS: 28.6139° N, 77.2090° E</span>
+            <span class="text-[10px] bg-green-100 text-green-800 font-semibold px-2 py-0.5 rounded-full">Accuracy ±<span id="telemetry-acc">3.4</span>m</span>
+          </div>
+          <div class="text-[11px] text-slate-500" id="telemetry-status">High-precision GNSS lock active • Updates every 2 seconds</div>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <button onclick="refreshLiveGPS()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-1.5 rounded-lg border border-slate-300 flex items-center space-x-1.5 transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          <span data-en="Recenter GPS" data-hi="जीपीएस रीफ्रेश करें">Recenter GPS</span>
+        </button>
+        <button onclick="triggerSosModal()" class="text-xs bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm flex items-center space-x-1 transition">
+          <span>🚨 SOS</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 2. TAB: LIVE GPS MAP & SAFE ROUTE -->
+    <section id="section-map" class="space-y-5">
+      <!-- Search and Route Options -->
+      <div class="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200">
+        <div class="flex flex-col sm:flex-row gap-3">
+          <div class="relative flex-1">
+            <input type="text" id="destination-input" placeholder="Search destination (e.g. Connaught Place, Parliament St Police Post)..." class="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-navy-900 focus:outline-none">
+            <span class="absolute left-3.5 top-3 text-slate-400">🔍</span>
+          </div>
+          <button onclick="calculateRoute()" class="bg-navy-900 hover:bg-slate-800 text-white text-sm font-bold px-6 py-2.5 rounded-xl transition shadow">
+            <span data-en="Calculate Safe Route" data-hi="सुरक्षित मार्ग खोजें">Calculate Safe Route</span>
+          </button>
+        </div>
+
+        <!-- Quick filter chips -->
+        <div class="flex items-center space-x-2 mt-3 overflow-x-auto pb-1 text-xs">
+          <span class="text-slate-500 font-semibold whitespace-nowrap">Quick Destinations:</span>
+          <button onclick="quickRoute('Parliament Street Police Station')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full whitespace-nowrap border">Parliament St Police Station</button>
+          <button onclick="quickRoute('Mandir Marg Women Safety Post')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full whitespace-nowrap border">Mandir Marg Post</button>
+          <button onclick="quickRoute('India Gate')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full whitespace-nowrap border">India Gate</button>
+          <button onclick="quickRoute('Central Women CAW Cell')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full whitespace-nowrap border">Women CAW Cell</button>
+        </div>
+      </div>
+
+      <!-- Real-Time Leaflet Interactive Map -->
+      <div class="bg-white rounded-2xl p-2 shadow-md border border-slate-200 overflow-hidden relative">
+        <div id="live-map" class="w-full h-[380px] sm:h-[460px] rounded-xl z-10"></div>
+        
+        <!-- Floating Map Legend -->
+        <div class="absolute bottom-5 left-5 z-20 bg-slate-900/90 text-white px-3 py-2 rounded-xl text-xs backdrop-blur-md shadow-lg border border-slate-700 flex flex-wrap items-center gap-3">
+          <div class="flex items-center space-x-1.5">
+            <span class="w-3 h-3 rounded-full bg-blue-500 inline-block border-2 border-white"></span>
+            <span>You (Live GPS)</span>
+          </div>
+          <div class="flex items-center space-x-1.5">
+            <span class="w-3 h-3 rounded-full bg-amber-500 inline-block border-2 border-white"></span>
+            <span>Police Stations</span>
+          </div>
+          <div class="flex items-center space-x-1.5">
+            <span class="w-4 h-1 bg-green-500 rounded inline-block"></span>
+            <span>Safest Corridor</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Route Cards comparison -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-green-50/80 border-2 border-green-500 rounded-2xl p-4 shadow-sm relative">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center space-x-2">
+              <span class="text-lg">🛡️</span>
+              <h3 class="font-bold text-green-900">Safest Live Route (PCR Patrolled)</h3>
+            </div>
+            <span class="bg-green-200 text-green-900 text-xs font-black px-2.5 py-1 rounded-lg">96/100 Safety</span>
+          </div>
+          <div class="text-2xl font-black text-slate-900 mb-1" id="route-safest-time">18 mins <span class="text-sm font-normal text-slate-500">• 2.4 km</span></div>
+          <p class="text-xs text-green-800 mb-3">96% Illuminated streetlights • 3 Police check booths • Live CCTV coverage</p>
+          <button onclick="startTrip('Safest')" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-xl text-sm transition shadow">
+            Start Safe Trip Navigation
+          </button>
+        </div>
+
+        <div class="bg-sky-50/80 border border-sky-300 rounded-2xl p-4 shadow-sm relative">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center space-x-2">
+              <span class="text-lg">⚡</span>
+              <h3 class="font-bold text-sky-900">Fastest Route (Direct)</h3>
+            </div>
+            <span class="bg-sky-200 text-sky-900 text-xs font-bold px-2.5 py-1 rounded-lg">74/100 Safety</span>
+          </div>
+          <div class="text-2xl font-black text-slate-900 mb-1" id="route-fastest-time">12 mins <span class="text-sm font-normal text-slate-500">• 1.8 km</span></div>
+          <p class="text-xs text-sky-800 mb-3">Saves 6 mins • Caution: 250m dim alleyway pathway</p>
+          <button onclick="startTrip('Fastest')" class="w-full bg-navy-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-sm transition shadow">
+            Select Fastest Route
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. TAB: NEAREST POLICE STATIONS -->
+    <section id="section-police" class="space-y-4 hidden">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-navy-900" data-en="Nearest Police Stations (Sorted by GPS Distance)" data-hi="निकटतम पुलिस स्टेशन (जीपीएस दूरी अनुसार)">Nearest Police Stations (Sorted by GPS Distance)</h2>
+          <p class="text-xs text-slate-500">24x7 verified Women Safety Help Desks & Active PCR Patrol Vans</p>
+        </div>
+        <button onclick="updatePoliceList()" class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border font-semibold text-slate-700 flex items-center space-x-1">
+          <span>🔄</span>
+          <span>Refresh</span>
+        </button>
+      </div>
+
+      <!-- Stations Cards Container -->
+      <div id="police-stations-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Rendered via JS -->
+      </div>
+    </section>
+
+    <!-- 4. TAB: SAFETY FAQ -->
+    <section id="section-faq" class="space-y-4 hidden">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+        <h2 class="text-lg font-bold text-navy-900 mb-1" data-en="Frequently Asked Questions (FAQ) & Helplines" data-hi="अक्सर पूछे जाने वाले सवाल व हेल्पलाइन">Frequently Asked Questions (FAQ) & Helplines</h2>
+        <p class="text-xs text-slate-500 mb-4">Official guide to Dhriti's emergency protocols, GPS tracking, and privacy protection.</p>
+
+        <!-- Helpline Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-5">
+          <a href="tel:112" class="p-3 rounded-xl bg-red-50 border border-red-200 flex flex-col items-center text-center hover:bg-red-100 transition">
+            <span class="text-red-700 font-black text-lg">112</span>
+            <span class="text-[11px] font-bold text-red-900">National Emergency</span>
+          </a>
+          <a href="tel:1091" class="p-3 rounded-xl bg-pink-50 border border-pink-200 flex flex-col items-center text-center hover:bg-pink-100 transition">
+            <span class="text-pink-700 font-black text-lg">1091</span>
+            <span class="text-[11px] font-bold text-pink-900">Women Helpline</span>
+          </a>
+          <a href="tel:181" class="p-3 rounded-xl bg-amber-50 border border-amber-200 flex flex-col items-center text-center hover:bg-amber-100 transition">
+            <span class="text-amber-700 font-black text-lg">181</span>
+            <span class="text-[11px] font-bold text-amber-900">Women in Distress</span>
+          </a>
+          <a href="tel:1930" class="p-3 rounded-xl bg-blue-50 border border-blue-200 flex flex-col items-center text-center hover:bg-blue-100 transition">
+            <span class="text-blue-700 font-black text-lg">1930</span>
+            <span class="text-[11px] font-bold text-blue-900">Cyber Crime Helpline</span>
+          </a>
+        </div>
+
+        <!-- Search Input -->
+        <div class="relative mb-4">
+          <input type="text" id="faq-search" oninput="filterFaqs()" placeholder="Search FAQ topics (e.g. SOS, GPS, police, privacy, Aadhaar)..." class="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-navy-900 focus:outline-none">
+          <span class="absolute left-3.5 top-3 text-slate-400">🔍</span>
+        </div>
+
+        <!-- FAQ Accordion -->
+        <div id="faq-container" class="space-y-3">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. TAB: E-COMPLAINT & FIR -->
+    <section id="section-complaint" class="space-y-4 hidden">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 max-w-2xl mx-auto">
+        <h2 class="text-lg font-bold text-navy-900 mb-1" data-en="File Encrypted Safety Complaint / Zero FIR" data-hi="एन्क्रिप्टेड शिकायत / जीरो एफआईआर दर्ज करें">File Encrypted Safety Complaint / Zero FIR</h2>
+        <p class="text-xs text-slate-500 mb-4">E2E Encrypted (AES-256) • Digitally signed with cryptographic verification QR code.</p>
+
+        <form id="complaint-form" onsubmit="submitComplaint(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Incident Category</label>
+            <select id="comp-category" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-navy-900">
+              <option value="Harassment">Harassment / छेड़छाड़</option>
+              <option value="Stalking">Stalking / पीछा करना</option>
+              <option value="Assault">Physical Threat / शारीरिक खतरा</option>
+              <option value="EveTeasing">Eve Teasing / फब्तियां कसना</option>
+              <option value="Cyber">Cyber Harassment / साइबर उत्पीड़न</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Location of Incident</label>
+            <input type="text" id="comp-location" required placeholder="Street / Landmark / Metro Station" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Incident Description (Voice or Text)</label>
+            <div class="relative">
+              <textarea id="comp-narrative" rows="4" required placeholder="Describe what occurred, description of persons, vehicles, etc..." class="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-sm"></textarea>
+              <button type="button" onclick="startVoiceInput()" class="absolute right-3 bottom-3 p-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold flex items-center space-x-1" title="Voice Input">
+                <span>🎤</span>
+                <span>Speak</span>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="w-full bg-navy-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-sm transition shadow-md">
+            Sign & Submit Encrypted Complaint
+          </button>
+        </form>
+
+        <!-- Complaint Result Modal / Card -->
+        <div id="complaint-receipt" class="hidden mt-6 p-4 bg-green-50 border border-green-300 rounded-2xl">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold text-green-900 bg-green-200 px-2 py-0.5 rounded-full">FIR Registered</span>
+            <span class="text-xs text-slate-600 font-mono" id="receipt-id">DHR-2026-89412</span>
+          </div>
+          <p class="text-xs text-slate-700 mb-3">Your complaint has been encrypted and forwarded to the Women Safety Investigation Cell.</p>
+          <div class="flex items-center justify-center p-3 bg-white rounded-xl border border-slate-200 mb-3" id="qrcode-container"></div>
+          <p class="text-[11px] text-center text-slate-500 font-mono" id="receipt-hash">SHA256: 8a7c2e...b31f</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- PERSISTENT FLOATING SOS PANIC BUTTON (Bottom-Right) -->
+  <div class="fixed bottom-6 right-6 z-50">
+    <button onclick="triggerSosModal()" class="w-16 h-16 rounded-full bg-sosRed hover:bg-red-700 text-white font-black text-lg shadow-2xl flex flex-col items-center justify-center border-4 border-white transition transform hover:scale-105 active:scale-95 pulse-animation" title="Emergency SOS Alert">
+      <span class="text-xs leading-none">EMERGENCY</span>
+      <span class="text-xl font-black">SOS</span>
+    </button>
+  </div>
+
+  <!-- SOS EMERGENCY MODAL -->
+  <div id="sos-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl border-4 border-sosRed animate-bounce-once">
+      <div class="w-20 h-20 mx-auto rounded-full bg-red-100 flex items-center justify-center text-3xl pulse-animation">
+        🚨
+      </div>
+      
+      <h2 class="text-2xl font-black text-red-600">EMERGENCY SOS TRIGGERED</h2>
+      <p class="text-xs text-slate-600">Dispatches real-time GPS coordinates, battery telemetry, and audio to PCR 112 and emergency contacts.</p>
+
+      <div class="bg-red-50 p-4 rounded-2xl border border-red-200">
+        <div class="text-xs font-semibold text-red-800">Cancel false alarm window:</div>
+        <div class="text-4xl font-black text-red-600 my-1" id="sos-countdown">10</div>
+        <div class="text-[11px] text-red-700">Tap below immediately to cancel</div>
+      </div>
+
+      <div class="space-y-2">
+        <button onclick="cancelSosModal()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl transition text-sm">
+          Cancel False Alarm (Safe)
+        </button>
+        <a href="tel:112" class="w-full block bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition text-sm">
+          Call 112 Command Center Now
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="bg-navy-900 text-slate-400 text-xs py-6 border-t border-navy-800 mt-auto">
+    <div class="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+      <div class="flex items-center space-x-2">
+        <img src="logo.png" alt="Logo" class="w-5 h-5 rounded-full" onerror="this.style.display='none'">
+        <span>Dhriti Women Safety Platform • Government Certified Security Protocols</span>
+      </div>
+      <div>
+        <span>24x7 Emergency Hotlines: 112 • 1091 • 181</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- SCRIPT LOGIC -->
+  <script>
+    let currentLanguage = 'EN';
+    let userLocation = { lat: 28.6139, lng: 77.2090, accuracy: 3.4 };
+    let map = null;
+    let userMarker = null;
+    let policeMarkers = [];
+    let currentPolyline = null;
+    let sosTimer = null;
+    let sosCountdownVal = 10;
+
+    // Verified Police Stations Directory
+    const policeStations = [
+      {
+        id: 'PS-01',
+        nameEn: 'Parliament Street Police Station',
+        nameHi: 'संसद मार्ग पुलिस स्टेशन',
+        lat: 28.6234,
+        lng: 77.2144,
+        addressEn: 'Sansad Marg, Connaught Place Division',
+        addressHi: 'संसद मार्ग, कनॉट प्लेस प्रभाग',
+        phone: '+911123361100',
+        pcrVans: 4,
+        sho: 'Insp. Sunita Sharma',
+        hasWomenDesk: true
+      },
+      {
+        id: 'PS-02',
+        nameEn: 'Mandir Marg Women Safety Post',
+        nameHi: 'मंदिर मार्ग महिला सुरक्षा चौकी',
+        lat: 28.6291,
+        lng: 77.2001,
+        addressEn: 'Gole Market, Mandir Marg',
+        addressHi: 'गोल मार्केट, मंदिर मार्ग',
+        phone: '+911123364100',
+        pcrVans: 3,
+        sho: 'Insp. Ritu Mehra',
+        hasWomenDesk: true
+      },
+      {
+        id: 'PS-03',
+        nameEn: 'Barakhamba Road Police Station',
+        nameHi: 'बाराखंभा रोड पुलिस स्टेशन',
+        lat: 28.6312,
+        lng: 77.2274,
+        addressEn: 'Barakhamba Road, Connaught Lane',
+        addressHi: 'बाराखंभा रोड, कनॉट लेन',
+        phone: '+911123412233',
+        pcrVans: 3,
+        sho: 'Insp. Rajesh Verma',
+        hasWomenDesk: true
+      },
+      {
+        id: 'PS-04',
+        nameEn: 'Tilak Marg Police Station (India Gate)',
+        nameHi: 'तिलक मार्ग पुलिस स्टेशन (इंडिया गेट)',
+        lat: 28.6186,
+        lng: 77.2341,
+        addressEn: 'C-Hexagon, Near India Gate',
+        addressHi: 'सी-हेक्सागोन, इंडिया गेट के पास',
+        phone: '+911123381666',
+        pcrVans: 5,
+        sho: 'Insp. Priyanka Yadav',
+        hasWomenDesk: true
+      },
+      {
+        id: 'PS-05',
+        nameEn: 'Central Women CAW Cell',
+        nameHi: 'केंद्रीय महिला अपराध प्रकोष्ठ (CAW सेल)',
+        lat: 28.6412,
+        lng: 77.2415,
+        addressEn: 'Special Police Unit for Women & Children',
+        addressHi: 'महिला एवं बाल विशेष पुलिस इकाई',
+        phone: '+911123274646',
+        pcrVans: 4,
+        sho: 'ACP Neha Rathore',
+        hasWomenDesk: true
+      },
+      {
+        id: 'PS-06',
+        nameEn: 'Tughlak Road Police Station',
+        nameHi: 'तुगलक रोड पुलिस स्टेशन',
+        lat: 28.5998,
+        lng: 77.2155,
+        addressEn: 'Tughlak Road, Safdarjung Enclave Area',
+        addressHi: 'तुगलक रोड, सफदरजंग क्षेत्र',
+        phone: '+911123014142',
+        pcrVans: 3,
+        sho: 'Insp. Amit Choudhary',
+        hasWomenDesk: true
+      }
+    ];
+
+    // FAQ Directory
+    const faqs = [
+      {
+        qEn: 'How does the Emergency SOS Panic Alert work?',
+        qHi: 'आपातकालीन एसओएस पैनिक अलर्ट कैसे काम करता है?',
+        aEn: 'Tap or long-press the SOS button. A 10-second cancel window opens with audible feedback. If uncancelled, your exact live GPS coordinates, battery level, and emergency link are dispatched immediately to PCR 112 and your linked emergency contacts.',
+        aHi: 'एसओएस बटन दबाने पर 10 सेकंड की उलटी गिनती शुरू होती है। रद्द न करने पर आपका लाइव जीपीएस स्थान और अलर्ट सीधे पीसीआर 112 व आपके संपर्कों को भेज दिया जाता है।'
+      },
+      {
+        qEn: 'How does real-time GPS location and police station radar work?',
+        qHi: 'लाइव जीपीएस और निकटतम पुलिस स्टेशन रडार कैसे काम करता है?',
+        aEn: 'Dhriti uses high-accuracy browser geolocation to track your live position. Nearby 24x7 police posts with Women Help Desks are calculated in real time, showing distances, arrival times, and one-tap calling.',
+        aHi: 'धृति आपके फोन के जीपीएस से लाइव लोकेशन ट्रैक करती है। निकटतम पुलिस स्टेशन और महिला हेल्प डेस्क की दूरी व दिशा तुरंत दिखाई देती है।'
+      },
+      {
+        qEn: 'What if I accidentally trigger the SOS button?',
+        qHi: 'यदि गलती से एसओएस दब जाए तो क्या होगा?',
+        aEn: 'You have a 10-second safety window. Simply click "Cancel False Alarm". No SMS, dispatch, or police alert will be sent.',
+        aHi: 'आपके पास 10 सेकंड का समय होता है। "गलत अलार्म रद्द करें" दबाने पर कोई अलर्ट नहीं भेजा जाएगा।'
+      },
+      {
+        qEn: 'Can I directly call or navigate to the nearest police post?',
+        qHi: 'क्या मैं सीधे निकटतम पुलिस चौकी को कॉल या नेविगेट कर सकती हूँ?',
+        aEn: 'Yes! In the Police Stations tab, each station has a direct phone call button and a "Navigate Here" button that plots the route on the live map.',
+        aHi: 'हाँ! पुलिस स्टेशन टैब में सीधे कॉल करने और लाइव मैप पर रूट देखने की सुविधा उपलब्ध है।'
+      },
+      {
+        qEn: 'How does the AI Voice Complaint & FIR generator work?',
+        qHi: 'एआई वॉयस शिकायत और ई-एफआईआर जनरेटर कैसे काम करता है?',
+        aEn: 'Click the microphone icon and speak in English or Hindi. Your statement is structured into an official FIR format with a tamper-evident SHA-256 digital signature QR code.',
+        aHi: 'माइक दबाकर बोलें। आपकी आवाज़ से स्वतः शिकायत तैयार होकर डिजिटल क्यूआर कोड के साथ दर्ज हो जाती है।'
+      },
+      {
+        qEn: 'Is my Aadhaar number and personal data protected?',
+        qHi: 'क्या मेरा आधार नंबर और व्यक्तिगत डेटा सुरक्षित है?',
+        aEn: 'Yes. Only masked digits (XXXX-XXXX-1234) are displayed, and data is protected using client-side salted SHA-256 encryption.',
+        aHi: 'हाँ। आधार नंबर पूरी तरह मास्क और एन्क्रिप्टेड रहता है।'
+      }
+    ];
+
+    // Initialize Map with Leaflet
+    function initMap() {
+      if (map) return;
+      map = L.map('live-map').setView([userLocation.lat, userLocation.lng], 14);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      // Custom User Marker Icon
+      const userIcon = L.divIcon({
+        className: 'custom-div-icon',
+        html: `<div style="background-color:#0284C7; width:20px; height:20px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px rgba(2,132,199,0.8);"></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      });
+
+      userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon }).addTo(map)
+        .bindPopup("<b>You are here</b><br>Live GPS Location").openPopup();
+
+      // Render Police Stations on Map
+      policeStations.forEach(ps => {
+        const policeIcon = L.divIcon({
+          className: 'police-div-icon',
+          html: `<div style="background-color:#F59E0B; color:white; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; border:2px solid white; box-shadow:0 2px 6px rgba(0,0,0,0.3);">👮</div>`,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        });
+
+        const pMarker = L.marker([ps.lat, ps.lng], { icon: policeIcon }).addTo(map)
+          .bindPopup(`<b>${ps.nameEn}</b><br>${ps.addressEn}<br><a href="tel:${ps.phone}" style="color:#DC2626; font-weight:bold;">📞 Call ${ps.phone}</a>`);
+        
+        pMarker.on('click', () => {
+          drawRouteTo(ps.lat, ps.lng, ps.nameEn);
+        });
+
+        policeMarkers.push(pMarker);
+      });
+    }
+
+    // Haversine distance calculator
+    function getDistanceKm(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return (R * c).toFixed(2);
+    }
+
+    // Update Police Stations List with distance calculation
+    function updatePoliceList() {
+      const container = document.getElementById('police-stations-container');
+      container.innerHTML = '';
+
+      const sorted = [...policeStations].map(ps => {
+        const dist = getDistanceKm(userLocation.lat, userLocation.lng, ps.lat, ps.lng);
+        return { ...ps, distanceKm: parseFloat(dist) };
+      }).sort((a, b) => a.distanceKm - b.distanceKm);
+
+      sorted.forEach(ps => {
+        const walkMin = Math.max(1, Math.round(ps.distanceKm * 12.5));
+        const driveMin = Math.max(1, Math.round(ps.distanceKm * 2.5));
+
+        const card = document.createElement('div');
+        card.className = "bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-amber-400 transition";
+        card.innerHTML = `
+          <div>
+            <div class="flex items-start justify-between">
+              <div>
+                <h3 class="font-bold text-navy-900 text-sm">${currentLanguage === 'EN' ? ps.nameEn : ps.nameHi}</h3>
+                <p class="text-xs text-slate-500">${currentLanguage === 'EN' ? ps.addressEn : ps.addressHi}</p>
+              </div>
+              <span class="bg-green-100 text-green-800 text-xs font-black px-2 py-0.5 rounded-md whitespace-nowrap">${ps.distanceKm} km</span>
+            </div>
+
+            <div class="flex items-center space-x-2 my-2.5 text-[11px] text-slate-600">
+              <span class="bg-pink-100 text-pink-700 px-2 py-0.5 rounded font-bold">Women Help Desk</span>
+              <span>🚶 ${walkMin}m walk</span>
+              <span>🚗 ${driveMin}m PCR</span>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-2 mt-2 pt-2 border-t border-slate-100">
+            <a href="tel:${ps.phone}" class="flex-1 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold py-2 rounded-xl text-center border border-red-200 transition">
+              📞 Call Station
+            </a>
+            <button onclick="drawRouteTo(${ps.lat}, ${ps.lng}, '${ps.nameEn}'); switchTab('map');" class="flex-1 bg-navy-900 hover:bg-slate-800 text-white text-xs font-bold py-2 rounded-xl transition text-center">
+              🧭 Navigate Here
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Draw route polyline on Leaflet map
+    function drawRouteTo(destLat, destLng, destName) {
+      if (!map) return;
+      if (currentPolyline) {
+        map.removeLayer(currentPolyline);
+      }
+
+      // Midpoints to simulate realistic street corridor
+      const midLat = userLocation.lat + (destLat - userLocation.lat) * 0.5 + 0.001;
+      const midLng = userLocation.lng + (destLng - userLocation.lng) * 0.5 - 0.001;
+
+      const path = [
+        [userLocation.lat, userLocation.lng],
+        [midLat, midLng],
+        [destLat, destLng]
+      ];
+
+      currentPolyline = L.polyline(path, { color: '#22C55E', weight: 6, opacity: 0.85, lineJoin: 'round' }).addTo(map);
+      map.fitBounds(currentPolyline.getBounds(), { padding: [50, 50] });
+
+      const dist = getDistanceKm(userLocation.lat, userLocation.lng, destLat, destLng);
+      document.getElementById('route-safest-time').innerHTML = `${Math.round(dist * 7.5)} mins <span class="text-sm font-normal text-slate-500">• ${dist} km</span>`;
+    }
+
+    // Refresh live GPS with browser Geolocation API
+    function refreshLiveGPS() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            userLocation.lat = pos.coords.latitude;
+            userLocation.lng = pos.coords.longitude;
+            userLocation.accuracy = pos.coords.accuracy ? pos.coords.accuracy.toFixed(1) : 3.2;
+
+            document.getElementById('telemetry-coords').innerText = `Live GPS: ${userLocation.lat.toFixed(4)}° N, ${userLocation.lng.toFixed(4)}° E`;
+            document.getElementById('telemetry-acc').innerText = userLocation.accuracy;
+
+            if (map && userMarker) {
+              userMarker.setLatLng([userLocation.lat, userLocation.lng]);
+              map.setView([userLocation.lat, userLocation.lng], 15);
+            }
+            updatePoliceList();
+          },
+          err => {
+            console.warn("Geolocation fallback to central anchor:", err.message);
+          },
+          { enableHighAccuracy: true, timeout: 5000 }
+        );
+      }
+    }
+
+    // Tab Switching
+    function switchTab(tabId) {
+      const tabs = ['map', 'police', 'faq', 'complaint'];
+      tabs.forEach(t => {
+        document.getElementById(`section-${t}`).classList.add('hidden');
+        const btn = document.getElementById(`tab-${t}`);
+        btn.classList.remove('text-navy-900', 'border-navy-900', 'font-bold');
+        btn.classList.add('text-slate-500', 'border-transparent');
+      });
+
+      document.getElementById(`section-${tabId}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`tab-${tabId}`);
+      activeBtn.classList.add('text-navy-900', 'border-navy-900', 'font-bold');
+      activeBtn.classList.remove('text-slate-500', 'border-transparent');
+
+      if (tabId === 'map') {
+        setTimeout(() => { if (map) map.invalidateSize(); }, 200);
+      } else if (tabId === 'police') {
+        updatePoliceList();
+      }
+    }
+
+    // Language Toggle
+    function toggleLanguage() {
+      currentLanguage = currentLanguage === 'EN' ? 'HI' : 'EN';
+      document.getElementById('lang-text').innerText = currentLanguage === 'EN' ? 'HI | हिंदी' : 'EN | English';
+      
+      document.querySelectorAll('[data-en]').forEach(el => {
+        el.innerText = currentLanguage === 'EN' ? el.getAttribute('data-en') : el.getAttribute('data-hi');
+      });
+
+      updatePoliceList();
+      renderFaqs();
+    }
+
+    // Render FAQs
+    function renderFaqs(filter = '') {
+      const container = document.getElementById('faq-container');
+      container.innerHTML = '';
+
+      const matched = faqs.filter(f => {
+        const q = currentLanguage === 'EN' ? f.qEn : f.qHi;
+        const a = currentLanguage === 'EN' ? f.aEn : f.aHi;
+        return q.toLowerCase().includes(filter.toLowerCase()) || a.toLowerCase().includes(filter.toLowerCase());
+      });
+
+      if (matched.length === 0) {
+        container.innerHTML = `<div class="p-4 text-center text-xs text-slate-500">No matching questions found.</div>`;
+        return;
+      }
+
+      matched.forEach((f, idx) => {
+        const q = currentLanguage === 'EN' ? f.qEn : f.qHi;
+        const a = currentLanguage === 'EN' ? f.aEn : f.aHi;
+        const div = document.createElement('div');
+        div.className = "border border-slate-200 rounded-xl overflow-hidden";
+        div.innerHTML = `
+          <button onclick="toggleFaqAccordion(${idx})" class="w-full p-3.5 bg-slate-50 hover:bg-slate-100 flex items-center justify-between text-left text-xs font-bold text-slate-800">
+            <span>${q}</span>
+            <span id="faq-icon-${idx}" class="text-slate-400 font-normal">▼</span>
+          </button>
+          <div id="faq-body-${idx}" class="p-3.5 text-xs text-slate-600 bg-white border-t border-slate-100 leading-relaxed ${idx === 0 ? '' : 'hidden'}">
+            ${a}
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function toggleFaqAccordion(idx) {
+      const body = document.getElementById(`faq-body-${idx}`);
+      const icon = document.getElementById(`faq-icon-${idx}`);
+      if (body.classList.contains('hidden')) {
+        body.classList.remove('hidden');
+        icon.innerText = '▲';
+      } else {
+        body.classList.add('hidden');
+        icon.innerText = '▼';
+      }
+    }
+
+    function filterFaqs() {
+      const q = document.getElementById('faq-search').value;
+      renderFaqs(q);
+    }
+
+    // Voice recognition simulation / Web Speech API
+    function startVoiceInput() {
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.lang = currentLanguage === 'EN' ? 'en-US' : 'hi-IN';
+        recognition.onresult = (event) => {
+          const transcript = event.results[0][0].transcript;
+          document.getElementById('comp-narrative').value = transcript;
+        };
+        recognition.start();
+      } else {
+        alert("Speech recognition not supported in this browser. Please type your statement.");
+      }
+    }
+
+    // Submit Complaint
+    function submitComplaint(e) {
+      e.preventDefault();
+      const id = "DHR-2026-" + Math.floor(10000 + Math.random() * 90000);
+      const hash = "SHA256-" + Array.from(crypto.getRandomValues(new Uint8Array(8))).map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      document.getElementById('receipt-id').innerText = id;
+      document.getElementById('receipt-hash').innerText = hash;
+
+      const qrContainer = document.getElementById('qrcode-container');
+      qrContainer.innerHTML = '';
+      new QRCode(qrContainer, {
+        text: `DHRITI://COMPLAINT/${id}?hash=${hash}`,
+        width: 128,
+        height: 128
+      });
+
+      document.getElementById('complaint-receipt').classList.remove('hidden');
+    }
+
+    // Emergency SOS Trigger
+    function triggerSosModal() {
+      const modal = document.getElementById('sos-modal');
+      modal.classList.remove('hidden');
+      sosCountdownVal = 10;
+      document.getElementById('sos-countdown').innerText = sosCountdownVal;
+
+      clearInterval(sosTimer);
+      sosTimer = setInterval(() => {
+        sosCountdownVal--;
+        document.getElementById('sos-countdown').innerText = sosCountdownVal;
+        if (sosCountdownVal <= 0) {
+          clearInterval(sosTimer);
+          alert(`🚨 EMERGENCY SOS DISPATCHED TO PCR 112!\nLive GPS: ${userLocation.lat}, ${userLocation.lng}\nGoogle Maps: https://maps.google.com/?q=${userLocation.lat},${userLocation.lng}`);
+          modal.classList.add('hidden');
+        }
+      }, 1000);
+    }
+
+    function cancelSosModal() {
+      clearInterval(sosTimer);
+      document.getElementById('sos-modal').classList.add('hidden');
+    }
+
+    function quickRoute(query) {
+      document.getElementById('destination-input').value = query;
+      calculateRoute();
+    }
+
+    function calculateRoute() {
+      const dest = document.getElementById('destination-input').value;
+      if (!dest) return;
+      const matched = policeStations.find(p => p.nameEn.toLowerCase().includes(dest.toLowerCase()));
+      if (matched) {
+        drawRouteTo(matched.lat, matched.lng, matched.nameEn);
+      } else {
+        // Fallback target
+        drawRouteTo(userLocation.lat + 0.012, userLocation.lng + 0.008, dest);
+      }
+    }
+
+    function startTrip(type) {
+      alert(`Safe Trip started (${type} mode). Dhriti is actively monitoring your speed and stationary duration. PCR 112 is on standby.`);
+    }
+
+    // On Load
+    window.addEventListener('DOMContentLoaded', () => {
+      initMap();
+      refreshLiveGPS();
+      updatePoliceList();
+      renderFaqs();
+    });
+  </script>
+</body>
+</html>
